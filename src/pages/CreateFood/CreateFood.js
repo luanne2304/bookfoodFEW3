@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Container, Form, Button } from "react-bootstrap";
+import services from "../../utils/services";
 
 const CreateFood = () => {
   const [food, setFood] = useState({
@@ -15,10 +16,22 @@ const CreateFood = () => {
     setFood({ ...food, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit =async (e) => {
     e.preventDefault();
-    console.log("Món ăn vừa tạo:", food);
-    alert("Món ăn đã được tạo thành công!");
+    try {
+      const result = await services.createFood(
+        food.name,
+        food.restaurantId,
+        1,
+        food.price,
+        food.isVegan,
+        food.isGlutenFree
+      );
+      console.log("Giao dịch hoàn tất:", result);
+      alert("Món ăn đã được thêm vào blockchain!");
+  } catch (error) {
+      alert("Thêm Món ăn thất bại!");
+  }
     setFood({
       name: "",
       restaurantId: "",

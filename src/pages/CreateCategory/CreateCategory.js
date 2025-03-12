@@ -1,17 +1,27 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Container, Form, Button, ListGroup } from "react-bootstrap";
+import services from "../../utils/services";
 
 const CreateCategory = () => {
   const [categoryName, setCategoryName] = useState("");
   const [categories, setCategories] = useState([]);
 
   // Xử lý thêm loại thức ăn
-  const handleAddCategory = () => {
+  const handleAddCategory = async(e) => {
     if (categoryName.trim() === "") {
       alert("Vui lòng nhập tên loại thức ăn!");
       return;
     }
-
+    e.preventDefault();
+      try {
+        const result = await services.createCategory(
+          categoryName
+        );
+        console.log("Giao dịch hoàn tất:", result);
+        alert("phân loại đã được thêm vào blockchain!");
+    } catch (error) {
+        alert("Thêm phân loại thất bại!");
+    }
     setCategories([...categories, categoryName]); // Thêm vào danh sách
     setCategoryName(""); // Reset input
   };
