@@ -3,44 +3,16 @@ import { Row, Col, Card, Button } from "react-bootstrap";
 import services from "../../utils/services";
 import { useNavigate } from "react-router-dom";
 
-const products = [1, 2, 3, 4];
-
-const ProductList = () => {
-  const [foods, setFoods] = useState([]);
+const ProductList = ({foods}) => {
   const navigate = useNavigate(); 
   const goDetail=(id)=>{
     navigate(`/restaurant/${id}`)
   }
   
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await services.getAllFoods();
-        console.log(res);
 
-        const formattedData = res.map((food) => ({
-          id: food.id.toString(),
-          name: food.name,
-          price: parseInt(food.price),
-          isVegan: food.isVegan,
-          isGlutenFree: food.isGlutenFree,
-          totalRatings:food.totalRatings,
-          totalStars:food.totalStars,
-          restaurantId:food.restaurantId,
-          categoryId:food.categoryId,
-        }));
-
-        setFoods(formattedData);
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách món ăn:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
   return (
     <>
-      <h4 className="mt-4">Mặt hàng phổ biến</h4>
+      <h4 className="mt-4">Mặt hàng </h4>
       <Row>
       {foods.length > 0 ? (
           foods.map((food) => (

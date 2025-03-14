@@ -26,6 +26,17 @@ const CreateCategory = () => {
     setCategoryName(""); // Reset input
   };
 
+  useEffect(()=>{
+    const fetch=async()=>{
+      const res= await services.getAllCategories();
+      const formattedData = res.map((item) => (
+         item.name
+      ));
+      setCategories(formattedData)
+    }
+    fetch()
+  },[])
+
   return (
     <Container className="mt-4">
       <h3>Thêm loại thức ăn</h3>

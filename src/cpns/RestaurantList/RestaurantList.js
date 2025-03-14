@@ -1,46 +1,18 @@
 import React, { useEffect,useState } from "react";
 import { Row, Col, Card, Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import services from "../../utils/services";
 
 
-const RestaurantList = () => {
-  const [restaurants, setRestaurants] = useState([]);
+const RestaurantList = ({restaurants}) => {
   const navigate = useNavigate(); 
   const goDetail=(id)=>{
     navigate(`/restaurant/${id}`)
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await services.getAllRestaurants();
-        console.log(res);
 
-        const formattedData = res.map((restaurant) => ({
-          id: restaurant.id.toString(),
-          name: restaurant.name,
-          houseNumber: restaurant.houseNumber,
-          street: restaurant.street,
-          ward: restaurant.ward,
-          district: restaurant.district,
-          city: restaurant.city,
-          owner: restaurant.owner,
-        }));
-
-        setRestaurants(formattedData); // Cập nhật state
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách nhà hàng:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  
   return (
     <>
-      <h4 className="mt-4">Nhà hàng nổi bật</h4>
+      <h4 className="mt-4">Nhà hàng </h4>
       <Row>
       {restaurants.length > 0 ? (
           restaurants.map((restaurant) => (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { Container, Form, Button } from "react-bootstrap";
 import services from "../../utils/services";
 
@@ -6,14 +6,20 @@ const CreateFood = () => {
   const [food, setFood] = useState({
     name: "",
     restaurantId: "",
-    category: "Main Dish", // Mặc định chọn Main Dish
+    category: 0, // Mặc định chọn Main Dish
     price: "",
-    isVegan: "false",
-    isGlutenFree: "false",
+    isVegan: false,
+    isGlutenFree: false,
   });
+  const [categories,setCategories]=useState([])
+  const [restaurants,setRestaurants]=useState([])
 
   const handleChange = (e) => {
-    setFood({ ...food, [e.target.name]: e.target.value });
+    const { name, value, type } = e.target;
+    setFood({
+      ...food,
+      [name]: type === "radio" ? value === "true" : value, // Convert string "true"/"false" thành boolean
+    });
   };
 
   const handleSubmit =async (e) => {
@@ -22,7 +28,7 @@ const CreateFood = () => {
       const result = await services.createFood(
         food.name,
         food.restaurantId,
-        1,
+        food.category,
         food.price,
         food.isVegan,
         food.isGlutenFree
@@ -32,15 +38,34 @@ const CreateFood = () => {
   } catch (error) {
       alert("Thêm Món ăn thất bại!");
   }
-    setFood({
-      name: "",
-      restaurantId: "",
-      category: "Main Dish",
-      price: "",
-      isVegan: "false",
-      isGlutenFree: "false",
-    });
   };
+
+    useEffect(()=>{
+      const fetch=async()=>{
+        const res= await services.getAllCategories();
+        if(res.length===0) return
+        const formattedData = res.map((item) => ({
+          id: item.id.toString(),
+          name: item.name,
+        }));
+        setFood((prev) => ({ ...prev, category: formattedData[0].id }));
+        setCategories(formattedData)
+      }
+      fetch()
+
+      const fetch2=async()=>{
+        const res= await services.getAllRestaurants();
+        if(res.length===0) return
+        const formattedData = res.map((item) => ({
+          id: item.id.toString(),
+          name: item.name,
+        }));
+        setFood((prev) => ({ ...prev, restaurantId: formattedData[0].id }));
+        setRestaurants(formattedData)
+      }
+      fetch2()
+    },[])
+  
 
   return (
     <Container className="mt-4">
@@ -58,23 +83,32 @@ const CreateFood = () => {
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>ID Nhà Hàng</Form.Label>
-          <Form.Control
-            type="text"
-            name="restaurantId"
-            value={food.restaurantId}
-            onChange={handleChange}
-            required
-          />
+          <Form.Label>Tên nhà hàng</Form.Label>
+          <Form.Select name="restaurantId" value={food.restaurantId} disabled={restaurants.length === 0} onChange={handleChange}>
+                    {restaurants.length > 0 ? (
+                restaurants.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))
+              ) : (
+                <option>Đang tải...</option>
+              )}
+          </Form.Select>
         </Form.Group>
 
         <Form.Group className="mb-3">
           <Form.Label>Loại món ăn</Form.Label>
-          <Form.Select name="category" value={food.category} onChange={handleChange}>
-            <option value="Main Dish">Món chính</option>
-            <option value="Appetizer">Khai vị</option>
-            <option value="Dessert">Tráng miệng</option>
-            <option value="Drink">Đồ uống</option>
+          <Form.Select name="category" value={food.category} disabled={categories.length === 0} onChange={handleChange}>
+                    {categories.length > 0 ? (
+                categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))
+              ) : (
+                <option>Đang tải...</option>
+              )}
           </Form.Select>
         </Form.Group>
 
@@ -98,7 +132,7 @@ const CreateFood = () => {
               type="radio"
               name="isVegan"
               value="true"
-              checked={food.isVegan === "true"}
+              checked={food.isVegan === true}
               onChange={handleChange}
             />
             <Form.Check
@@ -107,7 +141,7 @@ const CreateFood = () => {
               type="radio"
               name="isVegan"
               value="false"
-              checked={food.isVegan === "false"}
+              checked={food.isVegan === false}
               onChange={handleChange}
             />
           </div>
@@ -122,7 +156,7 @@ const CreateFood = () => {
               type="radio"
               name="isGlutenFree"
               value="true"
-              checked={food.isGlutenFree === "true"}
+              checked={food.isGlutenFree === true}
               onChange={handleChange}
             />
             <Form.Check
@@ -131,13 +165,13 @@ const CreateFood = () => {
               type="radio"
               name="isGlutenFree"
               value="false"
-              checked={food.isGlutenFree === "false"}
+              checked={food.isGlutenFree === false}
               onChange={handleChange}
             />
           </div>
         </Form.Group>
 
-        <Button variant="primary" type="submit">
+        <Button variant="primary" onClick={(e)=>handleSubmit(e)}>
           Tạo Món Ăn
         </Button>
       </Form>

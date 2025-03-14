@@ -16,7 +16,7 @@ const HomeNavbar = () => {
             <Nav.Link onClick={()=> navigate(`/CreateRestaurant`)} >Tạo nhà hàng</Nav.Link>
             <Nav.Link onClick={()=> navigate(`/CreateCategory`)}>Tạo phân loại thức ăn</Nav.Link>
             <Nav.Link onClick={()=> navigate(`/CreateFood`)}>Tạo Món ăn</Nav.Link>
-            <Nav.Link>Đăng nhập</Nav.Link>
+            <Nav.Link onClick={()=> navigate(`/OrderManagement`)}>Quản lý danh sách đơn hàng</Nav.Link>
           </Nav>
         </Navbar.Collapse>
       </Container>

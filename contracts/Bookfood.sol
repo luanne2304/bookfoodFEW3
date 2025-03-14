@@ -2,18 +2,17 @@
 pragma solidity ^0.8.19;
 
 contract Bookfood {
-    constructor(){
-        // owner=msg.sender;
+
+    constructor(address payable  _beneficiary){
+       beneficiary= _beneficiary;
     }
+
+    enum OrderStatus { Pending, Preparing, Delivered }
+    enum Payment  { Ewallet,Cash, CreditCard }
+
     struct FoodCategory {
         uint id;
         string name;
-    }
-
-    struct Promo {
-        uint id;
-        string name;
-        uint discount;
     }
     
     struct Restaurant {
@@ -27,12 +26,6 @@ contract Bookfood {
         address owner;
     }
 
-    struct Topping {
-        uint id;
-        string name;
-        uint price;
-    }
-
     struct Food {
         uint id;
         string name;
@@ -41,7 +34,6 @@ contract Bookfood {
         uint price;
         bool isVegan;
         bool isGlutenFree;
-        uint promoId;
         uint totalStars;
         uint totalRatings;
     }
@@ -54,9 +46,6 @@ contract Bookfood {
         uint stars;
     }
 
-    enum OrderStatus { Pending, Preparing, Delivered }
-    enum Payment  { Ewallet,Cash, CreditCard }
-
     struct Order {
         uint id;
         address customer;
@@ -65,65 +54,44 @@ contract Bookfood {
         OrderStatus status;
         Payment payment;
         bool isReviewed;
+        bool isPay;
+        string note;
     }
 
     struct DetailOrder {
         uint foodId;
         uint quantity;
         uint price;
-        string note;
     }
 
     mapping(uint => Restaurant) public restaurants;
-    mapping(uint => Topping[]) public foodToppings; 
     mapping(uint => Food) public foods;
-    mapping(uint => Rating) public ratings;
+    mapping(uint => mapping(uint => Rating)) public ratings;
+    mapping(uint => uint) public ratingCountPerFood; 
     mapping(uint => Order) public orders;
     mapping(uint => mapping(uint => DetailOrder)) public orderDetails; 
     mapping(uint => uint) public orderDetailCount;
     mapping(uint => FoodCategory) public categories; 
-    mapping(uint => Promo) public promos; 
     mapping(address => uint) public points;
-    mapping(address => mapping(uint => uint)) public userOrderHistory; 
 
-    
-    uint public restaurantCount;
-    uint public promoCount;
-    uint public foodCount;
-    uint public ratingCount;
-    uint public orderCount;
-    uint public categoryCount;
+    address payable public beneficiary;
+    uint restaurantCount;
+    uint foodCount;
+    uint orderCount;
+    uint categoryCount;
 
-    event OrderPlaced(uint orderId, address indexed customer, uint totalPrice);
-    event OrderStatusUpdated(uint orderId, OrderStatus status);
-    event PointsRedeemed(address indexed customer, uint pointsUsed);
-    event RatingAdded(uint ratingId, uint foodId, address user, uint stars);
+    event OrderStatusUpdated(uint orderId, address indexed customer, OrderStatus status);
     event MessageSent(address indexed sender, address indexed receiver, string message);
 
-    function addToppingToFood(uint _foodId, string memory _toppingName, uint _toppingPrice) public {
-        require(foods[_foodId].id != 0, "Food does not exist");
-
-        uint toppingId = foodToppings[_foodId].length; // ID của topping mới
-        foodToppings[_foodId].push(Topping(toppingId, _toppingName, _toppingPrice));
-    }
-
-    function getToppingsByFoodId(uint _foodId) 
-        public 
-        view 
-        returns (string[] memory, uint[] memory) 
-    {
-        require(foods[_foodId].id != 0, "Food does not exist");
-
-        uint toppingCount = foodToppings[_foodId].length;
-        string[] memory names = new string[](toppingCount);
-        uint[] memory prices = new uint[](toppingCount);
-
-        for (uint i = 0; i < toppingCount; i++) {
-            names[i] = foodToppings[_foodId][i].name;
-            prices[i] = foodToppings[_foodId][i].price;
-        }
-
-        return (names, prices);
+    function processPayment(uint _orderId) public payable {
+        Order storage order = orders[_orderId];
+        require(order.customer == msg.sender, "Only order owner can pay");
+        
+        uint amountToPay = order.totalPrice;
+        require(msg.value >= amountToPay, "Insufficient payment");
+        
+        beneficiary.transfer(amountToPay);
+        order.isPay=true;
     }
     
     function addRestaurant(
@@ -156,46 +124,46 @@ contract Bookfood {
     }
     function addFood(
         string memory _name, uint _restaurantId, uint _categoryId,
-        uint _price, bool _isVegan, bool _isGlutenFree, uint _promoId
+        uint _price, bool _isVegan, bool _isGlutenFree
     ) public {
         require(restaurants[_restaurantId].id != 0, "Restaurant does not exist");
         foodCount++;
         foods[foodCount] = Food(
             foodCount, _name, _restaurantId, _categoryId,
-            _price, _isVegan, _isGlutenFree, _promoId, 0, 0
+            _price, _isVegan, _isGlutenFree, 0, 0
         );
     }
 
-
-
-    function addRating(uint _idOrder, string[] memory _reviews, uint[] memory _stars) public {
-        require(_reviews.length == _stars.length, "Mismatched array lengths");   
-        
-        for (uint i = 0; i < orderDetailCount[_idOrder]; i++) {
-            uint foodId = orderDetails[_idOrder][i+1].foodId; // Lấy foodId từ orderDetails
-            require(foodId != 0, "DetailOrder does not exist"); // Kiểm tra xem orderDetail có tồn tại không
-            require(foods[foodId].id != 0, "Food does not exist"); // Kiểm tra xem món ăn có tồn tại không
-            require(_stars[i] >= 1 && _stars[i] <= 5, "Stars must be between 1 and 5");
-            
-            ratingCount++;
-            ratings[ratingCount] = Rating(ratingCount, foodId, msg.sender, _reviews[i], _stars[i]);
-
-            // Cập nhật tổng điểm đánh giá
-            foods[foodId].totalStars += _stars[i];
-            foods[foodId].totalRatings++;
-
-            emit RatingAdded(ratingCount, foodId, msg.sender, _stars[i]);
-        }
-        orders[_idOrder].isReviewed = true;
-    }
+function addRating(uint _idOrder, string[] memory _reviews, uint[] memory _stars) public {
+    require(_reviews.length == _stars.length, "Mismatched array lengths");   
+    require(orders[_idOrder].customer == msg.sender, "Only the buyer can add a rating");
+    require(orders[_idOrder].isReviewed == false, "Only the buyer can add a rating");
     
-    function placeOrder(Payment _payment,bool _isReviewed,uint[] memory _foodIds, uint[] memory _quantities, bool UsePoint,string[] memory note) 
+
+    for (uint i = 0; i < orderDetailCount[_idOrder]; i++) {
+        uint foodId = orderDetails[_idOrder][i+1].foodId; // Lấy foodId từ orderDetails
+        require(foodId != 0, "DetailOrder does not exist"); // Kiểm tra xem orderDetail có tồn tại không
+        require(_stars[i] >= 1 && _stars[i] <= 5, "Stars must be between 1 and 5");
+        
+        ratingCountPerFood[foodId]++;
+        uint newRatingId = ratingCountPerFood[foodId];
+        ratings[foodId][newRatingId] = Rating(newRatingId, foodId, msg.sender, _reviews[i], _stars[i]);
+
+        // Cập nhật tổng điểm đánh giá
+        foods[foodId].totalStars += _stars[i];
+        foods[foodId].totalRatings++;
+    }
+    orders[_idOrder].isReviewed = true;
+}
+
+    
+    function placeOrder(Payment _payment,uint[] memory _foodIds, uint[] memory _quantities, bool UsePoint,string memory note) 
     public {
         require(_foodIds.length > 0, "Order must contain at least one food item");
         require(_foodIds.length == _quantities.length, "Mismatched array lengths");
 
         uint totalPrice = 0;
-        uint newOrderId = orderCount++;
+        orderCount++;
 
 
         for (uint i = 0; i < _foodIds.length; i++) {
@@ -204,11 +172,9 @@ contract Bookfood {
             // Tính tổng giá tiền
             uint itemPrice = foods[_foodIds[i]].price * _quantities[i];
             totalPrice += itemPrice;
-            
-            userOrderHistory[msg.sender][_foodIds[i]] +=  _quantities[i];
-
-            uint itemIndex = orderDetailCount[newOrderId]++;
-            orderDetails[newOrderId][itemIndex] = DetailOrder(_foodIds[i], _quantities[i], itemPrice,note[i]);
+            orderDetailCount[orderCount]++;
+            uint itemIndex = orderDetailCount[orderCount];
+            orderDetails[orderCount][itemIndex] = DetailOrder(_foodIds[i], _quantities[i], itemPrice);
         }
 
         // Áp dụng điểm thưởng nếu có
@@ -220,17 +186,23 @@ contract Bookfood {
 
             points[msg.sender] -= availablePoints; 
         }
-        orders[newOrderId] = Order(newOrderId, msg.sender,discount, totalPrice-discount, OrderStatus.Pending,_payment,_isReviewed);
+        orders[orderCount] = Order(orderCount, msg.sender,discount, totalPrice-discount, OrderStatus.Pending,_payment,false,false,note);
         points[msg.sender] += 1; 
-        emit OrderPlaced(orderCount, msg.sender, totalPrice-discount);
     }
 
-    
     function updateOrderStatus(uint _orderId, OrderStatus _status) public {
         require(orders[_orderId].id != 0, "Order does not exist");
+        require(uint(_status) > uint(orders[_orderId].status), "Invalid status transition");
+        
+        // Nếu phương thức thanh toán là Ewallet thì phải kiểm tra isPay
+        if (orders[_orderId].payment == Payment.Ewallet) {
+            require(orders[_orderId].isPay, "Payment must be completed for Ewallet orders");
+        }
+        
         orders[_orderId].status = _status;
-        emit OrderStatusUpdated(_orderId, _status);
+        emit OrderStatusUpdated(_orderId,  orders[_orderId].customer,_status);
     }
+
     
     function sendMessage(address _receiver, string memory _message) public {
         emit MessageSent(msg.sender, _receiver, _message);
@@ -261,7 +233,8 @@ contract Bookfood {
         return allCate;
     }
 
-    function getOrdersBySender() public view returns (Order[] memory) {
+
+function getOrdersBySender() public view returns (Order[] memory) {
 
         uint count = 0;
 
@@ -285,17 +258,30 @@ contract Bookfood {
         return senderOrders;
     }
 
+
     function getOrderDetails(uint _orderId) public view returns (DetailOrder[] memory) {
         uint itemCount = orderDetailCount[_orderId];
         DetailOrder[] memory items = new DetailOrder[](itemCount);
 
         for (uint i = 0; i < itemCount; i++) {
-            items[i] = orderDetails[_orderId][i];
+            items[i] = orderDetails[_orderId][i+1];
         }
 
         return items;
     }
 
+    function getRatingsForFood(uint _foodId) public view returns (Rating[] memory) {
+        require(foods[_foodId].id != 0, "Food does not exist");
+
+        uint count = ratingCountPerFood[_foodId];
+        Rating[] memory foodRatings = new Rating[](count);
+        
+        for (uint i = 0; i < count; i++) {
+            foodRatings[i] = ratings[_foodId][i+1];
+        }
+        
+        return foodRatings;
+    }
 
     function searchRestaurants(
         string memory _keyword
@@ -373,41 +359,50 @@ contract Bookfood {
         return false;
     }
 
-    function filterFoods(
-        uint _minPrice, 
-        uint _maxPrice, 
-        uint _categoryId, 
-        uint _minRating, 
-        bool _isVegan, 
-        bool _isGlutenFree
-    ) public view returns (Food[] memory) {
-        Food[] memory tempFoods = new Food[](foodCount);
-        uint count = 0;
-
-        for (uint i = 1; i <= foodCount; i++) {
-            Food storage food = foods[i];
-            uint avgRating = (food.totalRatings > 0) ? (food.totalStars / food.totalRatings) : 0;
-
-            // Kiểm tra điều kiện lọc
-            bool matchesCategory = (_categoryId == 0 || food.categoryId == _categoryId);
-            bool matchesPrice = (food.price >= _minPrice && food.price <= _maxPrice);
-            bool matchesRating = (avgRating >= _minRating);
-            bool matchesVegan = (!_isVegan || food.isVegan);
-            bool matchesGlutenFree = (!_isGlutenFree || food.isGlutenFree);
-
-            if (matchesCategory && matchesPrice && matchesRating && matchesVegan && matchesGlutenFree) {
-                tempFoods[count] = food;
-                count++;
-            }
-        }
-
-        // Tạo mảng kết quả có kích thước đúng
-        Food[] memory filteredFoods = new Food[](count);
-        for (uint j = 0; j < count; j++) {
-            filteredFoods[j] = tempFoods[j];
-        }
-
-        return filteredFoods;
+    function getAllOrders() public view returns (Order[] memory) {
+    Order[] memory allOrders = new Order[](orderCount);
+    for (uint i = 1; i <= orderCount; i++) {
+        allOrders[i - 1] = orders[i];
     }
+    return allOrders;
+
+    // function filterFoods(
+    //     uint _minPrice, 
+    //     uint _maxPrice, 
+    //     uint _categoryId, 
+    //     uint _minRating, 
+    //     bool _isVegan, 
+    //     bool _isGlutenFree
+    // ) public view returns (Food[] memory) {
+    //     Food[] memory tempFoods = new Food[](foodCount);
+    //     uint count = 0;
+
+    //     for (uint i = 1; i <= foodCount; i++) {
+    //         Food storage food = foods[i];
+    //         uint avgRating = (food.totalRatings > 0) ? (food.totalStars / food.totalRatings) : 0;
+
+    //         // Kiểm tra điều kiện lọc
+    //         bool matchesCategory = (_categoryId == 0 || food.categoryId == _categoryId);
+    //         bool matchesPrice = (food.price >= _minPrice && food.price <= _maxPrice);
+    //         bool matchesRating = (avgRating >= _minRating);
+    //         bool matchesVegan = (!_isVegan || food.isVegan);
+    //         bool matchesGlutenFree = (!_isGlutenFree || food.isGlutenFree);
+
+    //         if (matchesCategory && matchesPrice && matchesRating && matchesVegan && matchesGlutenFree) {
+    //             tempFoods[count] = food;
+    //             count++;
+    //         }
+    //     }
+
+    //     // Tạo mảng kết quả có kích thước đúng
+    //     Food[] memory filteredFoods = new Food[](count);
+    //     for (uint j = 0; j < count; j++) {
+    //         filteredFoods[j] = tempFoods[j];
+    //     }
+
+    //     return filteredFoods;
+    // }
+
+}
 
 }

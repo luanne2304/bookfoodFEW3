@@ -8,6 +8,7 @@ import CreateCategory from "./pages/CreateCategory/CreateCategory";
 import CreateFood from "./pages/CreateFood/CreateFood";
 import OrderHistory from "./pages/OrderHistory/OrderHistory";
 import OrderDetail from "./pages/OrderDetail/OrderDetail";
+import OrderManagement from "./pages/OrderManagement/OrderManagement";
 
 function App() {
   return (
@@ -21,7 +22,9 @@ function App() {
           <Route path="/CreateCategory" element={<CreateCategory />} />
           <Route path="/CreateFood" element={<CreateFood />} />
           <Route path="/OrderHistory" element={<OrderHistory />} />
-          <Route path="/OrderDetail" element={<OrderDetail />} />
+          <Route path="/OrderDetail/:orderId" element={<OrderDetail />} />
+          <Route path="/OrderHistory" element={<OrderHistory />} />
+          <Route path="/OrderManagement" element={<OrderManagement />} />
         </Route>
       </Routes>
     </Router>
