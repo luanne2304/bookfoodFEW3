@@ -7,7 +7,7 @@ const FoodlistOrder = ({ restaurantId, setCart }) => {
   const [foods, setFoods] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
-  const [listRating, setListRating] = useState([]); // State để lưu danh sách đánh giá
+  const [listRating, setListRating] = useState([]);
 
   const handleChange = (item, quantity) => {
     const newValue = Number(quantity) > 0 ? Number(quantity) : 1;
@@ -16,6 +16,7 @@ const FoodlistOrder = ({ restaurantId, setCart }) => {
       [item]: newValue,
     }));
   };
+
 
   const addFood = (item) => {
     if (!quantities[item.id] || quantities[item.id] <= 0) {
@@ -40,7 +41,7 @@ const FoodlistOrder = ({ restaurantId, setCart }) => {
       const res = await services.getRatingByID(id);
       console.log("Danh sách đánh giá:", res);
 
-      setListRating(res); // Cập nhật danh sách đánh giá vào state
+      setListRating(res);
       setSelectedFood(foods.find((food) => food.id === id));
       setShowModal(true);
     } catch (e) {
@@ -64,6 +65,7 @@ const FoodlistOrder = ({ restaurantId, setCart }) => {
             totalStars: food.totalStars,
             restaurantId: food.restaurantId,
             categoryId: food.categoryId,
+            img: food.img
           }));
 
         setFoods(filteredData);
@@ -78,30 +80,51 @@ const FoodlistOrder = ({ restaurantId, setCart }) => {
   return (
     <>
       <Row>
-        {foods.map((item) => (
-          <Col md={3} className="mb-3" key={item.id}>
-            <Card>
-              <Card.Body>
-                <Card.Title>{item.name}</Card.Title>
-                <Card.Text>Giá: {item.price} VNĐ</Card.Text>
-                <Form.Group className="mb-2">
-                  <Form.Control
-                    type="number"
-                    value={quantities[item.id] || 1}
-                    min="0"
-                    onChange={(e) => handleChange(item.id, e.target.value)}
-                  />
-                </Form.Group>
+      {foods.map((food) => {
+  // ✅ Kiểm tra trước khi tính trung bình số sao
+  const totalStars = Number(food.totalStars) || 0;
+  const totalRatings = Number(food.totalRatings) || 0;
+  const averageRating = totalRatings > 0 ? (totalStars / totalRatings).toFixed(1) : "Chưa có";
 
-                <Button variant="success" onClick={() => addFood(item)}>Thêm món</Button>
-                <Button variant="warning" className="ms-2" onClick={() => handleShowModal(item.id)}>
-                  Xem đánh giá
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+  return (
+    <Col md={3} className="mb-3" key={food.id}>
+      <Card>
+        {/* ✅ Hiển thị ảnh món ăn */}
+        <Card.Img
+          variant="top"
+          src={food.img || "https://via.placeholder.com/150"}
+          alt={food.name}
+          style={{ height: "200px", objectFit: "cover" }}
+        />
+        <Card.Body>
+          <Card.Title>{food.name}</Card.Title>
+          <Card.Text>Giá: {food.price} VNĐ</Card.Text>
+
+          {/* ⭐ Hiển thị số sao trung bình */}
+          <Card.Text>
+            {averageRating} ⭐ ({totalRatings})
+          </Card.Text>
+
+          <Form.Group className="mb-2">
+            <Form.Control
+              type="number"
+              value={quantities[food.id] || 1}
+              min="0"
+              onChange={(e) => handleChange(food.id, e.target.value)}
+            />
+          </Form.Group>
+
+          <Button variant="success" onClick={() => addFood(food)}>Thêm món</Button>
+          <Button variant="warning" className="ms-2" onClick={() => handleShowModal(food.id)}>
+            Xem đánh giá
+          </Button>
+        </Card.Body>
+      </Card>
+    </Col>
+  );
+})}
+
+      </Row>  
 
       {/* Modal hiển thị đánh giá */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>

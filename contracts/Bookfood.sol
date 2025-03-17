@@ -29,6 +29,7 @@ contract Bookfood {
     struct Food {
         uint id;
         string name;
+        string img;
         uint restaurantId;
         uint categoryId;
         uint price;
@@ -48,6 +49,7 @@ contract Bookfood {
 
     struct Order {
         uint id;
+        uint restaurantId;
         address customer;
         uint discount;
         uint totalPrice;
@@ -88,9 +90,9 @@ contract Bookfood {
         require(order.customer == msg.sender, "Only order owner can pay");
         
         uint amountToPay = order.totalPrice;
-        require(msg.value >= amountToPay, "Insufficient payment");
+        require((msg.value *1000) >= amountToPay, "Insufficient payment");
         
-        beneficiary.transfer(amountToPay);
+        beneficiary.transfer(msg.value);
         order.isPay=true;
     }
     
@@ -124,12 +126,12 @@ contract Bookfood {
     }
     function addFood(
         string memory _name, uint _restaurantId, uint _categoryId,
-        uint _price, bool _isVegan, bool _isGlutenFree
+        uint _price, bool _isVegan, bool _isGlutenFree, string memory img
     ) public {
         require(restaurants[_restaurantId].id != 0, "Restaurant does not exist");
         foodCount++;
         foods[foodCount] = Food(
-            foodCount, _name, _restaurantId, _categoryId,
+            foodCount, _name,img, _restaurantId, _categoryId,
             _price, _isVegan, _isGlutenFree, 0, 0
         );
     }
@@ -164,11 +166,15 @@ function addRating(uint _idOrder, string[] memory _reviews, uint[] memory _stars
 
         uint totalPrice = 0;
         orderCount++;
+        uint temp_resId=0;
 
 
         for (uint i = 0; i < _foodIds.length; i++) {
             require(foods[_foodIds[i]].id != 0, "Food does not exist");
-
+            if(temp_resId==0){
+                temp_resId=foods[_foodIds[i]].restaurantId;
+            }
+            require(temp_resId==foods[_foodIds[i]].restaurantId, "food not from the same restaurant");
             // Tính tổng giá tiền
             uint itemPrice = foods[_foodIds[i]].price * _quantities[i];
             totalPrice += itemPrice;
@@ -186,13 +192,17 @@ function addRating(uint _idOrder, string[] memory _reviews, uint[] memory _stars
 
             points[msg.sender] -= availablePoints; 
         }
-        orders[orderCount] = Order(orderCount, msg.sender,discount, totalPrice-discount, OrderStatus.Pending,_payment,false,false,note);
+        orders[orderCount] = Order(orderCount,temp_resId, msg.sender,discount, totalPrice-discount, 
+        OrderStatus.Pending,_payment,false,false,note);
         points[msg.sender] += 1; 
     }
 
     function updateOrderStatus(uint _orderId, OrderStatus _status) public {
         require(orders[_orderId].id != 0, "Order does not exist");
         require(uint(_status) > uint(orders[_orderId].status), "Invalid status transition");
+
+        address restaurantOwner = restaurants[orders[_orderId].restaurantId].owner;
+        require(msg.sender == restaurantOwner || msg.sender == beneficiary, "Only restaurant owner or beneficiary can update status");
         
         // Nếu phương thức thanh toán là Ewallet thì phải kiểm tra isPay
         if (orders[_orderId].payment == Payment.Ewallet) {

@@ -66,7 +66,7 @@ const Home = () => {
           (!minPrice || food.price >= minPrice) &&
           (!maxPrice || food.price <= maxPrice) &&
           (!selectedCategory || food.categoryId == selectedCategory) &&
-          food.totalStars / food.totalRatings >= minRating &&
+          (food.totalRatings > 0 ? food.totalStars / food.totalRatings >= minRating : true) &&
           (!filterVegan || food.isVegan) &&
           (!filterGlutenFree || food.isGlutenFree)
       )
@@ -91,6 +91,7 @@ const Home = () => {
         totalStars:food.totalStars,
         restaurantId:food.restaurantId,
         categoryId:food.categoryId,
+        img:food.img
       }));
       setTempFoods(formattedData)
       setFoods(formattedData);
